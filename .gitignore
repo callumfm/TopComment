@@ -1,0 +1,22 @@
+# PyCharm configs
+.idea/
+.iml
+
+# Byte-compiled / optimised / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# db config
+fpl/shared/configs/postgresql/database.ini
+
+# json cache
+*.cache/
+
+*.xml
