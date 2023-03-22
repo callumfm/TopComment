@@ -3,7 +3,7 @@ import datetime
 
 import pytz
 
-CONSOLE_SEVERITY = "INFO"
+CONSOLE_SEVERITY = "DEBUG"
 TIMEZONE = pytz.timezone("Europe/London")
 FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
@@ -12,7 +12,7 @@ severity = {
     "INFO": logging.INFO,
     "WARNING": logging.WARNING,
     "ERROR": logging.ERROR,
-    "CRITICAL": logging.CRITICAL
+    "CRITICAL": logging.CRITICAL,
 }
 
 
