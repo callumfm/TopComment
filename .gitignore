@@ -20,3 +20,5 @@ fpl/shared/configs/postgresql/database.ini
 *.cache/
 
 *.xml
+
+*.json

@@ -3,12 +3,12 @@ from typing import List, Dict
 
 import pandas as pd
 
-from dates import get_week_num, get_dates_article_urls, get_dates
-from logger import get_configured_logger
-from scraper import SeleniumScraper
-from config import START_DATE, END_DATE, LOG_N_ITER, GET_WORST, URLS_CSV
+from utils.dates import get_week_num, get_dates_article_urls, get_dates
+import utils.logger as logs
+from web_scraper.scraper import SeleniumScraper
+from config import START_DATE, END_DATE, LOG_N_ITER, URLS_CSV
 
-log = get_configured_logger(__name__)
+log = logs.CustomLogger(__name__)
 
 
 def create_df_output(
@@ -22,63 +22,81 @@ def create_df_output(
     return df
 
 
+def process_article(ss: SeleniumScraper, url: str, best_upvotes: int, date_: date, i: int):
+    """Process single article"""
+    ss.driver.get(url)
+    best_comments = ss.get_button_comments(comment_type="Best rated")
+
+    if not best_comments:
+        return
+
+    top_comment_upvotes = best_comments[0]["rating-button-up"]
+
+    if top_comment_upvotes > best_upvotes:
+        log.info(
+            "New top comment found with {top_comment_upvotes} upvotes - {url}",
+            prefix=logs.PREFIX
+        )
+        best_upvotes = top_comment_upvotes
+
+        article_of_the_week = create_df_output(
+            comments=best_comments,
+            url=url,
+            date_=date_,
+            article_num=i,
+        )
+        return best_upvotes, article_of_the_week
+
+
+def process_date(
+        ss: SeleniumScraper,
+        date_: date,
+        current_week_num: int,
+        best_upvotes: int,
+        top_weekly_articles: List,
+        article_of_the_week: pd.DataFrame
+):
+    """Process all articles on date"""
+    article_urls = get_dates_article_urls(date_)
+    n_articles = len(article_urls)
+    week_num = get_week_num(date_)
+
+    # If new week, store best article and reset counters
+    if week_num != current_week_num:
+        log.info(f"Week {week_num} scan complete, storing best article")
+        top_weekly_articles.append(article_of_the_week)
+        best_upvotes = 0
+        current_week_num = week_num
+
+    # For each article on date, check number of best rated comment upvotes
+    for i, url in enumerate(article_urls):
+        logs.PREFIX = f"Week {week_num} | {date_} | {i + 1}/{n_articles} articles"
+
+        if i + 1 % LOG_N_ITER == 0:
+            log.info(logs.PREFIX)
+
+        res = process_article(ss, url, best_upvotes, date_, i)
+
+        if res is None:
+            continue
+
+        best_upvotes, article_of_the_week = res
+
+    return current_week_num, best_upvotes, article_of_the_week, top_weekly_articles
+
+
 def main():
     dates = get_dates(start_date=START_DATE, end_date=END_DATE)
     top_weekly_articles = []
+    article_of_the_week = None
+    best_upvotes = 0
+    current_week_num = get_week_num(dates[0])
 
     with SeleniumScraper() as ss:
-        article_of_the_week = None
-        best_upvotes = 0
-        current_week_num = get_week_num(dates[0])
-
         for date_ in dates:
-            article_urls = get_dates_article_urls(date_)
-            n_articles = len(article_urls)
-            week_num = get_week_num(date_)
-
-            # If new week, store best article and reset counters
-            if week_num != current_week_num:
-                log.info(f"Week {week_num} scan complete, storing best article")
-                top_weekly_articles.append(article_of_the_week)
-                best_upvotes = 0
-                current_week_num = week_num
-
-            # For each article on date, check number of best rated comment upvotes
-            for i, url in enumerate(article_urls):
-                iteration = f"{i + 1}/{n_articles}"
-                log_prefix = f"Week {week_num} | {date_} | {iteration} articles"
-
-                if i+1 % LOG_N_ITER == 0:
-                    log.info(log_prefix)
-
-                ss.driver.get(url)
-                best_comments = ss.get_button_comments(comment_type="Best rated")
-
-                if not best_comments:
-                    continue
-
-                # If new best article found, get worst comments as well and store
-                # Will contain duplicates to be removed later
-                top_comment_upvotes = best_comments[0]["rating-button-up"]
-
-                if top_comment_upvotes > best_upvotes:
-                    log.info(
-                        f"{log_prefix} - New top comment found with {top_comment_upvotes} upvotes - {url}"
-                    )
-                    best_upvotes = top_comment_upvotes
-
-                    worst_comments = []
-                    if GET_WORST:
-                        worst_comments = ss.get_button_comments(
-                            comment_type="Worst rated"
-                        )
-
-                    article_of_the_week = create_df_output(
-                        comments=best_comments + worst_comments,
-                        url=url,
-                        date_=date_,
-                        article_num=i,
-                    )
+            current_week_num, best_upvotes, article_of_the_week, top_weekly_articles = process_date(
+                ss, date_, current_week_num, best_upvotes, top_weekly_articles, article_of_the_week
+            )
 
     pd.concat(top_weekly_articles).to_csv(URLS_CSV)
 

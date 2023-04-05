@@ -11,9 +11,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from config import SLEEP, TIMEOUT, N_TOP_COMMENTS, CHROME_ARGS
-from logger import get_configured_logger
+import utils.logger as logs
 
-log = get_configured_logger(__name__)
+log = logs.CustomLogger(__name__)
 
 
 class SeleniumScraper:
@@ -27,13 +27,13 @@ class SeleniumScraper:
     def __enter__(self):
         self.driver = webdriver.Chrome(options=self.chrome_options)
         self.driver.maximize_window()
-        log.info("Selenium scraper initialised")
+        log.info("Selenium scraper initialised", prefix=logs.PREFIX)
         self.remove_base_pop_up()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.driver.quit()
-        log.info("Selenium scraper safely closed")
+        log.info("Selenium scraper safely closed", prefix=logs.PREFIX)
 
     def remove_base_pop_up(self):
         """Load random article and remove 'Got it!' pop-up for session"""
@@ -52,7 +52,7 @@ class SeleniumScraper:
             )
             return element
         except TimeoutException:
-            log.warning(f"Timeout error: could not retrieve {search_type} {string}")
+            log.warning(f"Timeout error: could not retrieve {search_type} {string}", prefix=logs.PREFIX)
 
     def click_dynamic_element(self, search_type: By, string: str) -> bool:
         try:
@@ -62,11 +62,11 @@ class SeleniumScraper:
             ).click()
             return True
         except ElementClickInterceptedException:
-            log.debug(f"Pop up prevented {string} element from being clicked")
+            log.debug(f"Pop up prevented {string} element from being clicked", prefix=logs.PREFIX)
             self.click_dynamic_element(search_type, string)
             return False
         except TimeoutException:
-            log.debug(f"Timeout error: could not retrieve {search_type} {string}")
+            log.debug(f"Timeout error: could not retrieve {search_type} {string}", prefix=logs.PREFIX)
             return False
 
     def get_button_comments(
@@ -74,7 +74,9 @@ class SeleniumScraper:
         comment_type: Literal["Best rated", "Worst rated"],
         n_top: int = N_TOP_COMMENTS,
     ) -> List[Dict[str, Union[str, int]]]:
-        """Retrieve comment body, upvotes and downvotes. Some articles have zero comments, hence just return empty list"""
+        """
+        Retrieve comment body, upvotes and downvotes. Some articles have zero comments, hence just return empty list
+        """
         if not self.click_dynamic_element(By.XPATH, f"//a[text()='{comment_type}']"):
             return []
 
