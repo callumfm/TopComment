@@ -1,0 +1,10 @@
+--
+service_account_credentials: "topcomment-382512-a4e03f1a4037.json"
+service: "compute"
+project_name: "TopComment"
+zone: "europe-west2"
+ssh_username: ""
+ssh_key: ""
+instance_name: ""
+instance_template: ""
+num_instances: 4

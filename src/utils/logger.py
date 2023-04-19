@@ -4,7 +4,8 @@ import sys
 
 import pytz
 
-CONSOLE_SEVERITY = "DEBUG"
+from configs.webscraper.runner_config import LOG_LEVEL
+
 PREFIX = None
 
 TIMEZONE = pytz.timezone("Europe/London")
@@ -21,7 +22,6 @@ severity = {
 
 
 class CustomFormatter(logging.Formatter):
-
     def formatTime(self, record, datefmt=None) -> str:
         utc_time = datetime.datetime.fromtimestamp(record.created)
         local_time = utc_time.astimezone(TIMEZONE)
@@ -40,7 +40,7 @@ class CustomFormatter(logging.Formatter):
 
 class CustomLogger(logging.Logger):
 
-    stdout_level = severity[CONSOLE_SEVERITY]
+    stdout_level = severity[LOG_LEVEL]
 
     def __init__(self, name, level=None):
         level = level or self.stdout_level

@@ -1,5 +1,0 @@
---
-project: "TopComment"
-service_account_credentials: "topcomment-382512-a4e03f1a4037.json"
-zone: "europe-west2"
-num_instances: 4
