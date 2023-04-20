@@ -1,0 +1,8 @@
+log_n_iter: 1
+sleep_time: 0.5
+timeout: 2
+chrome_args:
+  - disable-dev-shm-usage
+  - no-sandbox
+  - disable-notifications
+  - headless

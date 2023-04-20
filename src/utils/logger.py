@@ -4,10 +4,9 @@ import sys
 
 import pytz
 
-from configs.webscraper.runner_config import LOG_LEVEL
 
 PREFIX = None
-
+LOG_LEVEL = "DEBUG"
 TIMEZONE = pytz.timezone("Europe/London")
 FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 FORMAT_WITH_PREFIX = "%(asctime)s - %(name)s - %(levelname)s - %(prefix)s - %(message)s"

@@ -1,0 +1,20 @@
+project:
+  name: TopComment
+  id: topcomment-382512
+  region: europe-west2
+  zone: europe-west2-a
+
+managed_instance_group:
+  service_account_credentials: configs/cloud_sdk/topcomment-382512-a4e03f1a4037.json
+  service: compute
+  instance_template: cloud_sdk/instance_template.yaml
+  num_instances: 1
+  name: tc-mig
+
+vpc_network:
+  network:
+    name: tc-network
+    ip_cidr_range: 10.0.0.0/16
+  subnet:
+    name: tc-subnet
+    ip_cidr_range: 10.0.0.0/24

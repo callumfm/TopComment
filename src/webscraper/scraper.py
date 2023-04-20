@@ -14,7 +14,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from configs.webscraper.runner_config import SLEEP, TIMEOUT, N_TOP_COMMENTS, CHROME_ARGS, LOG_N_ITER
 from utils import logger as logs
 from webscraper.dates import get_dates_article_urls, get_week_num
 
@@ -24,11 +23,15 @@ log = logs.CustomLogger(__name__)
 class DailyMailScraper:
     def __init__(
         self,
-        chrome_args: List[str] = CHROME_ARGS,
-        timeout: int = TIMEOUT,
-        sleep_time: int = SLEEP,
+        n_top_comments: int,
+        log_n_iter: int,
+        chrome_args: List[str],
+        timeout: int,
+        sleep_time: int,
     ):
         self.driver = None
+        self.n_top_comments = n_top_comments
+        self.log_n_iter = log_n_iter
         self.chrome_options = Options()
         for arg in chrome_args:
             self.chrome_options.add_argument(arg)
@@ -102,11 +105,7 @@ class DailyMailScraper:
             )
             return False
 
-    async def get_button_comments(
-        self,
-        comment_type: Literal["Best rated", "Worst rated"],
-        n_top: int = N_TOP_COMMENTS,
-    ) -> List[Dict[str, Union[str, int]]]:
+    async def get_button_comments(self, comment_type: Literal["Best rated", "Worst rated"]) -> List[Dict[str, Union[str, int]]]:
         """
         Retrieve comment body, upvotes and downvotes. Some articles have zero comments, hence just return empty list
         """
@@ -122,13 +121,13 @@ class DailyMailScraper:
         }
         button = button_cls[comment_type]
 
-        if comment_type == "Best rated" and n_top > 1:
+        if comment_type == "Best rated" and self.n_top_comments > 1:
             await self.click_dynamic_element(By.XPATH, "//button[text()='Show More']")
 
         comment_divs = await self.get_dynamic_elements_by_custom(
             By.CSS_SELECTOR, '[class^="comment comment-"]'
         )
-        return self.get_comment_content(comment_divs[:n_top], button=button)
+        return self.get_comment_content(comment_divs[:self.n_top_comments], button=button)
 
     @staticmethod
     def get_comment_content(comment_divs, button) -> List[dict]:
@@ -203,7 +202,7 @@ class DailyMailScraper:
         for i, url in enumerate(article_urls):
             logs.PREFIX = f"Week {week_num} | {date_} | {i + 1}/{n_articles} articles"
 
-            if (i + 1) % LOG_N_ITER == 0:
+            if (i + 1) % self.log_n_iter == 0:
                 log.info(logs.PREFIX)
 
             top_upvotes, top_article = await self.process_article(

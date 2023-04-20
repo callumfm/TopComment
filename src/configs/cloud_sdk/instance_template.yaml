@@ -1,33 +1,32 @@
---
 resources:
-- name: my-template
-  type: compute.v1.instanceTemplate
-  properties:
-    machineType: n1-standard-4
-    disks:
-    - boot: true
-      autoDelete: true
-      initializeParams:
-        diskSizeGb: 50
-        sourceImage: projects/debian-cloud_sdk/global/images/family/debian-10
-        diskType: pd-standard
-    networkInterfaces:
-    - network: global/networks/my-network
-      subnetwork: regions/my-region/subnetworks/my-subnet
-      accessConfigs:
-      - name: External NAT
-        type: ONE_TO_ONE_NAT
-      networkTier: PREMIUM
-    serviceAccounts:
-      - email: default
-        scopes:
-          - https://www.googleapis.com/auth/cloud_sdk-platform
-    metadata:
-      items:
-        - key: startup-script-url
-          value: gs://my-bucket/startup-script.sh
-    tags:
-      items:
-        - http-server
-        - https-server
-    description: Instance template for running Selenium tests
+name: tc-template
+type: compute.v1.instanceTemplate
+properties:
+  machineType: n1-standard-4
+  disks:
+    boot: true
+    autoDelete: true
+    initializeParams:
+      diskSizeGb: 50
+      sourceImage: projects/debian-cloud_sdk/global/images/family/debian-10
+      diskType: pd-standard
+  networkInterfaces:
+    network: projects/TopComment/global/networks/tc-network
+    subnetwork: projects/TopComment/regions/europe-west2/subnetworks/tc-subnet
+    accessConfigs:
+      name: External NAT
+      type: ONE_TO_ONE_NAT
+    networkTier: PREMIUM
+  serviceAccounts:
+    - email: default
+      scopes:
+        - https://www.googleapis.com/auth/cloud_sdk-platform
+  metadata:
+    items:
+      - key: startup-script-url
+        value: cloud_sdk/startup_script.sh
+  tags:
+    items:
+      - http-server
+      - https-server
+  description: Instance template for running Selenium tests
