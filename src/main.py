@@ -56,15 +56,15 @@ def full_pipeline(argv: List = None) -> None:
     #     end_date=args.end_date,
     #     n_top_comments=args.n_top_comments,
     # )
-    #
-    # with MIGClient(**mig_config) as gcp_client:
-    #     res = gcp_client.execute_in_parallel(scripts)
-    #     res.to_csv(args.save_path)
 
-    scripts = ["python -m webscraper/test_script.py" for _ in range(n_instances)]
+    script = "python -m webscraper/test_script.py"
 
     with GCPClient(config) as gcp_client:
-        res = gcp_client.execute_in_parallel(scripts)
+        instances = gcp_client.get_instances()
+        gcp_client.execute_script_in_instance(
+            instance=instances[0],
+            script=script,
+        )
 
 
 if __name__ == "__main__":

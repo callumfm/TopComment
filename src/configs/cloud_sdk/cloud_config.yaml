@@ -5,10 +5,10 @@ project:
   zone: europe-west2-a
 
 managed_instance_group:
-  service_account_credentials: configs/cloud_sdk/topcomment-382512-a4e03f1a4037.json
+  service_account_credentials: configs/cloud_sdk/topcomment-382512-ff0807643047.json
   service: compute
   instance_template: cloud_sdk/instance_template.yaml
-  num_instances: 1
+  num_instances: 2
   name: tc-mig
 
 vpc_network:
@@ -18,3 +18,17 @@ vpc_network:
   subnet:
     name: tc-subnet
     ip_cidr_range: 10.0.0.0/24
+  firewall:
+    name: allow-all
+    priority: 1000
+    direction: INGRESS
+    sourceRanges:
+      - 0.0.0.0/0
+    allowed:
+      - IPProtocol: tcp
+        ports:
+          - "0-65535"
+      - IPProtocol: udp
+        ports:
+          - "0-65535"
+      - IPProtocol: icmp

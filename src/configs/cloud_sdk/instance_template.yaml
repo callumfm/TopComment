@@ -1,32 +1,31 @@
-resources:
 name: tc-template
-type: compute.v1.instanceTemplate
-properties:
-  machineType: n1-standard-4
-  disks:
-    boot: true
+machineType: zones/europe-west2-a/machineTypes/n1-standard-1
+disks:
+  - boot: true
     autoDelete: true
     initializeParams:
       diskSizeGb: 50
-      sourceImage: projects/debian-cloud_sdk/global/images/family/debian-10
-      diskType: pd-standard
-  networkInterfaces:
-    network: projects/TopComment/global/networks/tc-network
-    subnetwork: projects/TopComment/regions/europe-west2/subnetworks/tc-subnet
+      sourceImage: projects/debian-cloud/global/images/family/debian-10
+      diskType: projects/topcomment-382512/zones/europe-west2-a/diskTypes/pd-standard
+networkInterfaces:
+  - network: projects/topcomment-382512/global/networks/tc-network
+    subnetwork: projects/topcomment-382512/regions/europe-west2/subnetworks/tc-subnet
     accessConfigs:
-      name: External NAT
-      type: ONE_TO_ONE_NAT
+      - name: External NAT
+        type: ONE_TO_ONE_NAT
     networkTier: PREMIUM
-  serviceAccounts:
-    - email: default
-      scopes:
-        - https://www.googleapis.com/auth/cloud_sdk-platform
-  metadata:
-    items:
-      - key: startup-script-url
-        value: cloud_sdk/startup_script.sh
-  tags:
-    items:
-      - http-server
-      - https-server
-  description: Instance template for running Selenium tests
+serviceAccounts:
+  - email: tc-mig-sa@topcomment-382512.iam.gserviceaccount.com
+    scopes:
+      - https://www.googleapis.com/auth/compute
+metadata:
+  items:
+    - key: startup-script
+      value: cloud_sdk/startup_script.sh
+    - key: ssh-keys
+      value: C:/Documents/dev/.ssh/id_rsa.pub
+tags:
+  items:
+    - http-server
+    - https-server
+description: Instance template for running Selenium tests

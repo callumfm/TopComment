@@ -2,12 +2,13 @@ import inspect
 from typing import List
 import concurrent.futures
 
+from google.api_core.exceptions import NotFound
+from google.cloud import compute_v1
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import utils.logger as logs
 import paramiko
-import pandas as pd
 
 from configs.config import load_config
 
@@ -34,32 +35,28 @@ class GCPClient:
         return f"{__class__.__name__}({self.mig_config['project_name']}, {self.mig_config['zone']})"
 
     def __enter__(self):
-        self.upload_instance_template(self.mig_config["instance_template"])
-        self.create_mig()
+        self.build_up()
+        return self
 
-    def __exit__(self, mig_name, exc_type, exc_val, exc_tb):
-        self.close_mig()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # self.tear_down()
+        pass
+
+    def build_up(self):
+        # self.create_network()
+        # self.create_subnetwork()
+        # self.create_allow_all_firewall_rule()
+        self.create_vm_instance()
+
+    def tear_down(self):
+        self.delete_all_vm_instances()
 
     def get_instances(self):
-        """Get all instances in MIG"""
-        mig_resource = self.client.instanceGroupManagers().get(
-            project=self.project_name,
+        """Get all VM instances"""
+        return self.client.instances().list(
+            project=self.project_id,
             zone=self.zone,
-            instanceGroupManager=self.mig_config["name"],
         ).execute()
-
-        instances = []
-        for instance in mig_resource["instanceGroup"]:
-            instance_name = instance["instance"].rsplit("/", 1)[1]
-            request = self.client.instances().get(
-                project=self.project_name,
-                zone=self.zone,
-                instance=instance_name
-            )
-            response = request.execute()
-            instances.append(response)
-
-        return instances
 
     @staticmethod
     def get_ssh_credentials(instance):
@@ -74,9 +71,8 @@ class GCPClient:
 
         return ssh_key, ssh_username
 
-    def execute_script_in_instance(self, instance, script):
+    def execute_script_in_instance(self, instance, script) -> None:
         """Execute single script in single instance"""
-        instance_name = instance["name"]
         ip_address = instance["networkInterfaces"][0]["accessConfigs"][0]["natIP"]
 
         ssh_key, ssh_username = self.get_ssh_credentials(instance)
@@ -84,82 +80,76 @@ class GCPClient:
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(ip_address, username=ssh_username, pkey=ssh_key)
 
-        cmd = f"python -m {script}"
-        stdin, stdout, stderr = ssh.exec_command(cmd)
-
-        stdout_lines = stdout.readlines()
-        stderr_lines = stderr.readlines()
-        log.info(stderr_lines)
+        ssh.exec_command(script)
         ssh.close()
 
-        df = pd.DataFrame({"instance": [instance_name] * len(stdout_lines), "output": stdout_lines})
-        return df
-
-    def execute_in_parallel(self, scripts: List[str]) -> pd.DataFrame:
+    def execute_in_parallel(self, scripts: List[str]) -> None:
         """Execute multiple scripts across multiple instances in parallel"""
         instances = self.get_instances()
         inp = list(zip(instances, scripts))
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(instances)) as executor:
-            dfs = executor.map(self.execute_script_in_instance, inp)
+            executor.map(self.execute_script_in_instance, inp)
 
-        table = pd.concat(dfs, ignore_index=True)
-        return table
-
-    def create_mig(self):
-        """Use the Google Cloud Python SDK to create a Managed Instance Group (MIG) with n instances"""
-        instance_group_body = {
-            "name": self.mig_config["name"],
-            "size": self.mig_config["num_instances"],
-            "instanceTemplate": self.mig_config["instance_template"],
-        }
-        request = self.client.instanceGroupManagers().insert(
+    def create_vm_instance(self):
+        """Create a VM instance"""
+        instance_template = self.load_instance_template()
+        request = self.client.instances().insert(
             project=self.project_id,
             zone=self.zone,
-            body=instance_group_body
+            body=instance_template,
         )
         self.execute_request(request)
 
-    def close_mig(self):
-        """Use the Google Cloud Python SDK to close Managed Instance Group (MIG) with n instances"""
+    def delete_all_vm_instances(self):
+        """Delete all VM instances"""
         instances = self.get_instances()
-        request = self.client.instanceGroupManagers().deleteInstances(
-            project=self.project_id,
-            zone=self.zone,
-            instanceGroupManager=self.mig_config["name"],
-            body={"instances": instances},
-        )
-        self.execute_request(request)
+
+        for instance in instances["items"]:
+            instance_name = instance["name"]
+            request = self.client.instances().delete(
+                project=self.project_id,
+                zone=self.zone,
+                instance=instance_name
+            )
+            self.execute_request(request)
 
     def create_network(self) -> None:
-        name = self.network_config["network"]["name"]
-        network_exists = self.check_network_exists(network_name=name)
+        network_name = self.network_config["network"]["name"]
 
-        if network_exists:
-            log.info(f"Network {name} already exists. Skipping creation step.")
+        try:
+            network_client = compute_v1.NetworksClient(credentials=self.credentials)
+            network_client.get(project=self.project_id, network=network_name)
+            log.info(f"Network {network_name} already exists. Skipping creation step.")
             return
+        except NotFound:
+            log.info(f"Network {network_name} not found. Building new network.")
 
         network_body = {
-            'name': name,
+            'name': network_name,
             'autoCreateSubnetworks': False
         }
         request = self.client.networks().insert(project=self.project_id, body=network_body)
         self.execute_request(request)
 
-    def create_subnetwork(self, network_response):
-        name = self.network_config["subnet"]["name"]
+    def create_subnetwork(self):
+        subnet_name = self.network_config["subnet"]["name"]
+        network_name = self.network_config["network"]["name"]
         ip_cidr_range = self.network_config["subnet"]["ip_cidr_range"]
-        subnet_exists = self.check_network_exists(network_name=name)
 
-        if subnet_exists:
-            log.info(f"Network {name} already exists. Skipping creation step.")
+        try:
+            subnet_client = compute_v1.SubnetworksClient(credentials=self.credentials)
+            subnet_client.get(project=self.project_id, region=self.region, subnetwork=subnet_name)
+            log.info(f"Subnetwork {subnet_name} already exists. Skipping creation step.")
             return
+        except NotFound:
+            log.info(f"Subnetwork {subnet_name} not found. Building new subnet.")
 
         subnetwork_body = {
-            "name": name,
+            "name": subnet_name,
             "ipCidrRange": ip_cidr_range,
-            "region": f"https://www.googleapis.com/compute/v1/projects/{self.project_id}/regions/{name}",
-            "network": network_response["selfLink"]
+            "region": f"projects/{self.project_id}/regions/{subnet_name}",
+            "network": f"projects/{self.project_id}/global/networks/{network_name}"
         }
         request = self.client.subnetworks().insert(
             project=self.project_id,
@@ -168,26 +158,51 @@ class GCPClient:
         )
         self.execute_request(request)
 
-    def check_network_exists(self, network_name):
-        client = self.client.NetworksClient()
-        subnet_path = client.network_path(self.project_id, network_name)
-        subnet_exists = client.get_network(network_path=subnet_path)
-        return subnet_exists
+    def create_allow_all_firewall_rule(self):
+        network_name = self.network_config["network"]["name"]
+        firewall_rule_body = {
+            "network": f"projects/{self.project_id}/global/networks/{network_name}"
+        }
+        firewall_rule_body.update(self.network_config["firewall"])
 
-    def upload_instance_template(self, template_path) -> None:
-        instance_template = load_config(template_path)
-        request = self.client.instanceTemplates().insert(
+        firewall_rule = self.client.firewalls().insert(
             project=self.project_id,
-            body=instance_template,
+            body=firewall_rule_body,
         )
-        self.execute_request(request)
-        self.mig_config["instance_template"] = f"projects/{self.project_name}/global/instanceTemplates/tc-template"
+        self.execute_request(firewall_rule)
 
-    @staticmethod
-    def execute_request(request):
+    def load_instance_template(self) -> dict:
+        """Load instance template. Update metadata"""
+        instance_template = load_config(self.mig_config["instance_template"])
+
+        # TODO: add uiid name
+
+        # Add startup script
+        startup_script_path = instance_template["metadata"]["items"][0]["value"]
+        with open(startup_script_path, "r") as f:
+            start_up_script = f.read()
+            metadata_startup = {"key": "startup-script", "value": start_up_script}
+
+        # Add ssh keys
+        ssh_key_path = instance_template["metadata"]["items"][1]["value"]
+        with open(ssh_key_path, "r") as f:
+            ssh_key = f.read()
+            metadata_ssh = {"key": "ssh-keys", "value": f"username:{ssh_key}"}
+
+        instance_template["metadata"]["items"] = [metadata_startup, metadata_ssh]
+        return instance_template
+
+    def delete_instance_template(self):
+        pass
+
+    def execute_request(self, request):
         func_name = inspect.stack()[1][3]
         try:
             response = request.execute()
+            self.client.globalOperations().wait(project=self.project_id, operation=response["name"])
             log.info(f"{func_name} executed successfully - {response}")
+            return response
         except HttpError as error:
-            log.warning(f"{func_name} request failed - {error}")
+            error_msg = f"{func_name} request failed - {error}"
+            log.warning(error_msg)
+            raise HttpError(error_msg)
