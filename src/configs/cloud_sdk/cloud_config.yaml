@@ -4,12 +4,11 @@ project:
   region: europe-west2
   zone: europe-west2-a
 
-managed_instance_group:
+vm_instances:
   service_account_credentials: configs/cloud_sdk/topcomment-382512-ff0807643047.json
   service: compute
   instance_template: cloud_sdk/instance_template.yaml
   num_instances: 2
-  name: tc-mig
 
 vpc_network:
   network:

@@ -11,6 +11,15 @@ from datetime import datetime
 
 log = logs.CustomLogger(__name__)
 
+"""
+1 VM instance ~= £0.80 per day
+1 article ~= 5 seconds compute time
+1 day ~= 1,750 articles ~= 0.1 days compute time
+
+3 months articles ~= 9 days compute time (1 instance, £7.20)
+                  ~= 1 day compute time (9 instances, £7.20)
+"""
+
 
 def parse_args(argv=None) -> argparse.Namespace:
     """Arguments for root pipeline call"""
@@ -44,27 +53,22 @@ def full_pipeline(argv: List = None) -> None:
     """
     args = parse_args(argv)
     config = load_config("cloud_sdk/cloud_config.yaml")
-    n_instances = config["managed_instance_group"]["num_instances"]
+    n_instances = config["vm_instances"]["num_instances"]
 
     log.info("Starting new pipeline run")
     log.info(f"Date range: {args.start_date} - {args.end_date}")
     log.info(f"Number of instances: {n_instances}")
 
-    # scripts = create_instance_scripts(
-    #     n_instances=mig_config['num_instances'],
-    #     start_date=args.start_date,
-    #     end_date=args.end_date,
-    #     n_top_comments=args.n_top_comments,
-    # )
+    scripts = create_instance_scripts(
+        n_instances=n_instances,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        n_top_comments=args.n_top_comments,
+    )
 
-    script = "python -m webscraper/test_script.py"
-
-    with GCPClient(config) as gcp_client:
-        instances = gcp_client.get_instances()
-        gcp_client.execute_script_in_instance(
-            instance=instances[0],
-            script=script,
-        )
+    gcp_client = GCPClient(config)
+    gcp_client.create_n_instances(1)
+    print()
 
 
 if __name__ == "__main__":

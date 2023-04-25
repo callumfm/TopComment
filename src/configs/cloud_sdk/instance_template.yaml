@@ -1,12 +1,12 @@
 name: tc-template
-machineType: zones/europe-west2-a/machineTypes/n1-standard-1
+machineType: zones/europe-west2-a/machineTypes/n2-standard-2
 disks:
   - boot: true
     autoDelete: true
     initializeParams:
       diskSizeGb: 50
       sourceImage: projects/debian-cloud/global/images/family/debian-10
-      diskType: projects/topcomment-382512/zones/europe-west2-a/diskTypes/pd-standard
+      diskType: projects/topcomment-382512/zones/europe-west2-a/diskTypes/pd-ssd
 networkInterfaces:
   - network: projects/topcomment-382512/global/networks/tc-network
     subnetwork: projects/topcomment-382512/regions/europe-west2/subnetworks/tc-subnet
@@ -22,8 +22,6 @@ metadata:
   items:
     - key: startup-script
       value: cloud_sdk/startup_script.sh
-    - key: ssh-keys
-      value: C:/Documents/dev/.ssh/id_rsa.pub
 tags:
   items:
     - http-server

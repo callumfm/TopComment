@@ -10,15 +10,24 @@ from googleapiclient.errors import HttpError
 import utils.logger as logs
 import paramiko
 
+import secrets
+import string
+
 from configs.config import load_config
 
 log = logs.CustomLogger(__name__)
 
 
+def generate_id(n):
+    alphabet = string.ascii_lowercase + string.digits
+    unique_id = ''.join(secrets.choice(alphabet) for _ in range(n))
+    return unique_id
+
+
 class GCPClient:
     def __init__(self, config):
         self.project_config = config["project"]
-        self.mig_config = config["managed_instance_group"]
+        self.instance_config = config["vm_instances"]
         self.network_config = config["vpc_network"]
         self.project_name = self.project_config["name"]
         self.project_id = self.project_config["id"]
@@ -26,30 +35,13 @@ class GCPClient:
         self.zone = self.project_config["zone"]
 
         self.credentials = service_account.Credentials.from_service_account_file(
-            self.mig_config["service_account_credentials"],
+            self.instance_config["service_account_credentials"],
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
         )
-        self.client = build(self.mig_config["service"], "v1", credentials=self.credentials)
+        self.client = build(self.instance_config["service"], "v1", credentials=self.credentials)
 
     def __repr__(self):
-        return f"{__class__.__name__}({self.mig_config['project_name']}, {self.mig_config['zone']})"
-
-    def __enter__(self):
-        self.build_up()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # self.tear_down()
-        pass
-
-    def build_up(self):
-        # self.create_network()
-        # self.create_subnetwork()
-        # self.create_allow_all_firewall_rule()
-        self.create_vm_instance()
-
-    def tear_down(self):
-        self.delete_all_vm_instances()
+        return f"{__class__.__name__}({self.project_name}, {self.zone})"
 
     def get_instances(self):
         """Get all VM instances"""
@@ -83,15 +75,7 @@ class GCPClient:
         ssh.exec_command(script)
         ssh.close()
 
-    def execute_in_parallel(self, scripts: List[str]) -> None:
-        """Execute multiple scripts across multiple instances in parallel"""
-        instances = self.get_instances()
-        inp = list(zip(instances, scripts))
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(instances)) as executor:
-            executor.map(self.execute_script_in_instance, inp)
-
-    def create_vm_instance(self):
+    def create_vm_instance(self) -> None:
         """Create a VM instance"""
         instance_template = self.load_instance_template()
         request = self.client.instances().insert(
@@ -100,6 +84,10 @@ class GCPClient:
             body=instance_template,
         )
         self.execute_request(request)
+
+    def create_n_instances(self, n) -> None:
+        for _ in range(n):
+            self.create_vm_instance()
 
     def delete_all_vm_instances(self):
         """Delete all VM instances"""
@@ -113,6 +101,33 @@ class GCPClient:
                 instance=instance_name
             )
             self.execute_request(request)
+
+    def load_instance_template(self) -> dict:
+        """Load instance template, add unique name, update metadata startup script"""
+        instance_template = load_config(self.instance_config["instance_template"])
+
+        # Add unique id to name
+        instance_template["name"] += f"-{generate_id(10)}"
+
+        # Add startup script
+        startup_script_path = instance_template["metadata"]["items"][0]["value"]
+        with open(startup_script_path, "r") as f:
+            start_up_script = f.read()
+            instance_template["metadata"]["items"] = [{"key": "startup-script", "value": start_up_script}]
+
+        return instance_template
+
+    def execute_request(self, request):
+        func_name = inspect.stack()[1][3]
+        try:
+            response = request.execute()
+            self.client.globalOperations().wait(project=self.project_id, operation=response["name"])
+            log.info(f"{func_name} executed successfully - {response}")
+            return response
+        except HttpError as error:
+            error_msg = f"{func_name} request failed - {error}"
+            log.warning(error_msg)
+            raise HttpError(error_msg)
 
     def create_network(self) -> None:
         network_name = self.network_config["network"]["name"]
@@ -159,6 +174,7 @@ class GCPClient:
         self.execute_request(request)
 
     def create_allow_all_firewall_rule(self):
+        """Not working or required"""
         network_name = self.network_config["network"]["name"]
         firewall_rule_body = {
             "network": f"projects/{self.project_id}/global/networks/{network_name}"
@@ -170,39 +186,3 @@ class GCPClient:
             body=firewall_rule_body,
         )
         self.execute_request(firewall_rule)
-
-    def load_instance_template(self) -> dict:
-        """Load instance template. Update metadata"""
-        instance_template = load_config(self.mig_config["instance_template"])
-
-        # TODO: add uiid name
-
-        # Add startup script
-        startup_script_path = instance_template["metadata"]["items"][0]["value"]
-        with open(startup_script_path, "r") as f:
-            start_up_script = f.read()
-            metadata_startup = {"key": "startup-script", "value": start_up_script}
-
-        # Add ssh keys
-        ssh_key_path = instance_template["metadata"]["items"][1]["value"]
-        with open(ssh_key_path, "r") as f:
-            ssh_key = f.read()
-            metadata_ssh = {"key": "ssh-keys", "value": f"username:{ssh_key}"}
-
-        instance_template["metadata"]["items"] = [metadata_startup, metadata_ssh]
-        return instance_template
-
-    def delete_instance_template(self):
-        pass
-
-    def execute_request(self, request):
-        func_name = inspect.stack()[1][3]
-        try:
-            response = request.execute()
-            self.client.globalOperations().wait(project=self.project_id, operation=response["name"])
-            log.info(f"{func_name} executed successfully - {response}")
-            return response
-        except HttpError as error:
-            error_msg = f"{func_name} request failed - {error}"
-            log.warning(error_msg)
-            raise HttpError(error_msg)
