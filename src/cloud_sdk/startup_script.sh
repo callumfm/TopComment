@@ -11,7 +11,7 @@ sudo apt-get install python3 build-essential libssl-dev libffi-dev python-dev
 wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 sudo dpkg --install google-chrome-stable_current_amd64.deb
 sudo apt-get --assume-yes install -f
-wget https://chromedriver.storage.googleapis.com/94.0.4606.61/chromedriver_linux64.zip
+wget https://chromedriver.storage.googleapis.com/112.0.5615.49/chromedriver_linux64.zip
 unzip chromedriver_linux64.zip
 sudo mv chromedriver /usr/local/bin/
 sudo chown root:root /usr/local/bin/chromedriver
@@ -23,8 +23,10 @@ git clone https://github.com/callumfm/TopComment.git /TopComment
 cd /TopComment/src || exit
 pip3 install --upgrade pip
 pip3 install -r requirements.txt
+
 mv /TopComment /usr/local/
 find /usr/local/TopComment -type d -exec chmod 777 {} \;
 find /usr/local/TopComment -type f -exec chmod 777 {} \;
-export PYTHONPATH=/usr/local/TopComment
+export PYTHONPATH=/usr/local/TopComment/src
+cd /usr/local/TopComment/src || exit
 echo "Setup complete"
