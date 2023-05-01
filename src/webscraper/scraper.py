@@ -197,7 +197,7 @@ class DailyMailScraper:
 
     async def process_date(self, date_: date) -> pd.DataFrame:
         """Process all articles on date"""
-        article_urls = get_dates_article_urls(date_)[:5]
+        article_urls = get_dates_article_urls(date_)
         n_articles = len(article_urls)
         top_upvotes = 0
         top_article = None
@@ -219,6 +219,9 @@ class DailyMailScraper:
 
     @staticmethod
     def save_checkpoint(days_top_article: pd.DataFrame, date_: date) -> None:
+        if not os.path.exists(DATA_DIR):
+            os.mkdir(DATA_DIR)
+
         for file in os.listdir(DATA_DIR):
             if file.startswith("CHECKPOINT_"):
                 os.remove(os.path.join(DATA_DIR, file))

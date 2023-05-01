@@ -45,7 +45,7 @@ def create_instance_scripts(
         start_date = datetime.strftime(dates_seg[0], "%d/%m/%Y")
         end_date = datetime.strftime(dates_seg[-1], "%d/%m/%Y")
         script = (
-            "export PYTHONPATH=/usr/local/TopComment/src\n"
+            "export PYTHONPATH=/usr/local/TopComment\n"
             + "cd /usr/local/TopComment/src\n"
             + f"python3 webscraper/run.py --start-date {start_date} --end-date {end_date} --n-top-comments {n_top_comments}"
         )
