@@ -9,7 +9,7 @@ vm_instances:
   service_account_credentials: configs/cloud_sdk/topcomment-382512-ff0807643047.json
   service: compute
   instance_template: cloud_sdk/instance_template.yaml
-  num_instances: 1
+  num_instances: 8
 
 vpc_network:
   network:
