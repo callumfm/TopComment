@@ -3,6 +3,7 @@ project:
   id: topcomment-382512
   region: europe-west2
   zone: europe-west2-a
+  startup_timeout: 10
 
 vm_instances:
   service_account_credentials: configs/cloud_sdk/topcomment-382512-ff0807643047.json

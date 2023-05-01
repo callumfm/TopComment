@@ -1,6 +1,7 @@
 import inspect
 from typing import List
 import concurrent.futures
+from time import sleep
 
 from google.api_core.exceptions import NotFound
 from google.cloud import compute_v1
@@ -33,6 +34,7 @@ class GCPClient:
         self.project_id = self.project_config["id"]
         self.region = self.project_config["region"]
         self.zone = self.project_config["zone"]
+        self.startup_timeout = self.project_config["startup_timeout"]
 
         self.credentials = service_account.Credentials.from_service_account_file(
             self.instance_config["service_account_credentials"],
@@ -43,37 +45,24 @@ class GCPClient:
     def __repr__(self):
         return f"{__class__.__name__}({self.project_name}, {self.zone})"
 
-    def get_instances(self):
-        """Get all VM instances"""
-        return self.client.instances().list(
+    def await_startup_script_execution(self, instance):
+        """Ensures all libraries are installed before using VM"""
+        request = self.client.instances().getSerialPortOutput(
             project=self.project_id,
             zone=self.zone,
-        ).execute()
+            instance=instance["id"],
+        )
+        response = self.execute_request(request)
+        console_output = response.get("contents", "")
+        t = 0
+        while "Startup finished" not in console_output and instance["status"] != "RUNNING":
+            sleep(2)
+            if t > self.startup_timeout:
+                error_msg = f"Startup script exceeded timeout limit ({self.startup_timeout}s) for instance {instance}"
+                log.warning(error_msg)
+                raise TimeoutError(error_msg)
 
-    @staticmethod
-    def get_ssh_credentials(instance):
-        """Retrieve ssh key and username for instance"""
-        metadata = instance["metadata"]["items"]
-        ssh_key = None
-        ssh_username = None
-        for item in metadata:
-            if item["key"] == "ssh-keys":
-                ssh_key = item["value"].split(":")[1].strip()
-                ssh_username = item["value"].split(":")[0].split()
-
-        return ssh_key, ssh_username
-
-    def execute_script_in_instance(self, instance, script) -> None:
-        """Execute single script in single instance"""
-        ip_address = instance["networkInterfaces"][0]["accessConfigs"][0]["natIP"]
-
-        ssh_key, ssh_username = self.get_ssh_credentials(instance)
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(ip_address, username=ssh_username, pkey=ssh_key)
-
-        ssh.exec_command(script)
-        ssh.close()
+        log.info(f"Startup script correctly for instance {instance}")
 
     def create_vm_instance(self) -> None:
         """Create a VM instance"""
@@ -83,11 +72,18 @@ class GCPClient:
             zone=self.zone,
             body=instance_template,
         )
-        self.execute_request(request)
+        self.execute_request(request, operation=True)
 
     def create_n_instances(self, n) -> None:
         for _ in range(n):
             self.create_vm_instance()
+
+    def get_instances(self):
+        """Get all VM instances"""
+        return self.client.instances().list(
+            project=self.project_id,
+            zone=self.zone,
+        ).execute()["items"]
 
     def delete_all_vm_instances(self):
         """Delete all VM instances"""
@@ -100,7 +96,7 @@ class GCPClient:
                 zone=self.zone,
                 instance=instance_name
             )
-            self.execute_request(request)
+            self.execute_request(request, operation=True)
 
     def load_instance_template(self) -> dict:
         """Load instance template, add unique name, update metadata startup script"""
@@ -117,12 +113,13 @@ class GCPClient:
 
         return instance_template
 
-    def execute_request(self, request):
+    def execute_request(self, request, operation=False):
         func_name = inspect.stack()[1][3]
         try:
             response = request.execute()
-            self.client.globalOperations().wait(project=self.project_id, operation=response["name"])
-            log.info(f"{func_name} executed successfully - {response}")
+            if operation:
+                self.client.globalOperations().wait(project=self.project_id, operation=response["name"])
+            log.info(f"{func_name} executed successfully")
             return response
         except HttpError as error:
             error_msg = f"{func_name} request failed - {error}"

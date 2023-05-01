@@ -17,11 +17,12 @@ sudo mv chromedriver /usr/local/bin/
 sudo chown root:root /usr/local/bin/chromedriver
 sudo chmod +x /usr/local/bin/chromedriver
 
-# Clone the private Git repository
-mkdir ~/TopComment
-git clone https://github.com/callumfm/TopComment.git ~/TopComment
-
-# Install requirements
-cd ~/TopComment/src || exit
+# Clone the repo and install requirements
+mkdir /TopComment
+git clone https://github.com/callumfm/TopComment.git /TopComment
+cd /TopComment/src || exit
 pip3 install --upgrade pip
 pip3 install -r requirements.txt
+mv /TopComment /usr/local/
+find /usr/local/TopComment -type d -exec 775 {} \;
+find /usr/local/TopComment -type d -exec 664 {} \;
