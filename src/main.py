@@ -43,7 +43,7 @@ def create_instance_scripts(
     scripts = []
     for dates_seg in date_groups:
         start_date = datetime.strftime(dates_seg[0], "%d/%m/%Y")
-        end_date = datetime.strftime(dates_seg[1], "%d/%m/%Y")
+        end_date = datetime.strftime(dates_seg[-1], "%d/%m/%Y")
         script = (
             "export PYTHONPATH=/usr/local/TopComment/src\n"
             + "cd /usr/local/TopComment/src\n"
