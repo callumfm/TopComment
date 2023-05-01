@@ -27,7 +27,6 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument("--start-date", type=str, required=True)
     parser.add_argument("--end-date", type=str, required=True)
     parser.add_argument("--n-top-comments", type=int, default=1, required=False)
-    parser.add_argument("--save-path", type=str, default="data/top_weekly.csv", required=False)
 
     return parser.parse_args(argv)
 
@@ -39,6 +38,8 @@ def create_instance_scripts(n_instances: int, start_date: str, end_date: str, n_
     dates = get_dates(start_date=start_date, end_date=end_date)
     date_groups = np.array_split(dates, n_instances)
     scripts = [
+        f"export PYTHONPATH=/usr/local/TopComment/src\n"
+        f"cd /usr/local/TopComment/src\n"
         f"python3 webscraper/run.py --start-date {dg[0]} --end-date {dg[-1]} --n-top-comments {n_top_comments}"
         for dg in date_groups
     ]
@@ -65,8 +66,7 @@ def full_pipeline(argv: List = None) -> None:
         end_date=args.end_date,
         n_top_comments=args.n_top_comments,
     )
-    gcp_client = GCPClient(config)
-    gcp_client.run(num_instances=n_instances, scripts=scripts)
+    GCPClient(config).run(num_instances=n_instances, scripts=scripts)
 
 
 if __name__ == "__main__":

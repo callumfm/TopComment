@@ -27,6 +27,4 @@ pip3 install -r requirements.txt
 mv /TopComment /usr/local/
 find /usr/local/TopComment -type d -exec chmod 777 {} \;
 find /usr/local/TopComment -type f -exec chmod 777 {} \;
-export PYTHONPATH=/usr/local/TopComment/src
-cd /usr/local/TopComment/src || exit
 echo "Setup complete"

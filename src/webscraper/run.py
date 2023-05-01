@@ -55,5 +55,5 @@ if __name__ == "__main__":
     dates, n_top, filename = process_args()
     scraper_config = load_config("webscraper/scraper_config.yaml")
     scraper_config["n_top_comments"] = n_top
-    top_articles = asyncio.run(get_top_articles(dates=dates, scraper_config=scraper_config))
+    top_articles = asyncio.run(get_top_articles(dates=dates[:25], scraper_config=scraper_config))
     top_articles.to_csv(filename)
