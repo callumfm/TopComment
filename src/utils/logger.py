@@ -1,12 +1,11 @@
-import logging
 import datetime
+import logging
 import sys
 
 import pytz
 
-
 PREFIX = None
-LOG_LEVEL = "DEBUG"
+LOG_LEVEL = "INFO"
 TIMEZONE = pytz.timezone("Europe/London")
 FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 FORMAT_WITH_PREFIX = "%(asctime)s - %(name)s - %(levelname)s - %(prefix)s - %(message)s"

@@ -1,12 +1,15 @@
 import argparse
 import asyncio
+import os
+from datetime import date, datetime
 from typing import List, Tuple
-from datetime import datetime, date
+
 import pandas as pd
 
-from configs.config import load_config
-from webscraper.dates import get_dates
 import utils.logger as logs
+from configs.config import load_config
+from src import DATA_DIR
+from webscraper.dates import get_dates
 from webscraper.scraper import DailyMailScraper
 
 log = logs.CustomLogger(__name__)
@@ -21,23 +24,14 @@ def parse_args(argv=None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def output_filename(start_date, end_date):
-    start_date = start_date.replace("/", "")
-    end_date = end_date.replace("/", "")
-    filename = f"data/top_articles_{start_date}_{end_date}"
-
-    return filename
-
-
-def process_args(argv: List = None) -> Tuple[List[date], int, str]:
+def process_args(argv: List = None) -> Tuple[List[date], int]:
     args = parse_args(argv)
     start_date = datetime.strptime(args.start_date, "%d/%m/%Y").date()
     end_date = datetime.strptime(args.end_date, "%d/%m/%Y").date()
     log.info(f"Date range: {start_date} - {end_date}")
     dates = get_dates(start_date=start_date, end_date=end_date)
-    filename = output_filename(start_date=args.start_date, end_date=args.end_date)
 
-    return dates, args.n_top_comments, filename
+    return dates, args.n_top_comments
 
 
 async def get_top_articles(dates: List[date], scraper_config: dict) -> pd.DataFrame:
@@ -47,13 +41,25 @@ async def get_top_articles(dates: List[date], scraper_config: dict) -> pd.DataFr
             *[dms.process_date(date_) for date_ in dates]
         )
 
-    return pd.concat(top_daily_articles)
+    return top_daily_articles
+
+
+def save_output(top_articles: List[pd.DataFrame], date_range: List[date]) -> None:
+    start_date = datetime.strftime(date_range[0], "%d%m%Y")
+    end_date = datetime.strftime(date_range[1], "%d%m%Y")
+    filename = f"OUTPUT_{start_date}_{end_date}.csv"
+    filepath = os.path.join(DATA_DIR, filename)
+    df = pd.concat(top_articles)
+    df.to_csv(filepath)
+    log.info("Run complete - Saving output")
 
 
 if __name__ == "__main__":
     log.info("Starting new pipeline run")
-    dates, n_top, filename = process_args()
+    dates, n_top = process_args()
     scraper_config = load_config("webscraper/scraper_config.yaml")
     scraper_config["n_top_comments"] = n_top
-    top_articles = asyncio.run(get_top_articles(dates=dates[:25], scraper_config=scraper_config))
-    top_articles.to_csv(filename)
+    top_articles = asyncio.run(
+        get_top_articles(dates=dates, scraper_config=scraper_config)
+    )
+    save_output(top_articles=top_articles, date_range=dates)

@@ -1,20 +1,20 @@
-from datetime import date
+import os
+from datetime import date, datetime
 from time import sleep
-from typing import List, Union, Dict
-from typing_extensions import Literal
+from typing import Dict, List, Union
 
 import pandas as pd
 from selenium import webdriver
 from selenium.common import StaleElementReferenceException
-from selenium.common.exceptions import (
-    TimeoutException,
-    ElementClickInterceptedException,
-)
+from selenium.common.exceptions import (ElementClickInterceptedException,
+                                        TimeoutException)
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from typing_extensions import Literal
 
+from src import DATA_DIR
 from utils import logger as logs
 from webscraper.dates import get_dates_article_urls, get_week_num
 
@@ -106,7 +106,9 @@ class DailyMailScraper:
             )
             return False
 
-    async def get_button_comments(self, comment_type: Literal["Best rated", "Worst rated"]) -> List[Dict[str, Union[str, int]]]:
+    async def get_button_comments(
+        self, comment_type: Literal["Best rated", "Worst rated"]
+    ) -> List[Dict[str, Union[str, int]]]:
         """
         Retrieve comment body, upvotes and downvotes. Some articles have zero comments, hence just return empty list
         """
@@ -128,7 +130,9 @@ class DailyMailScraper:
         comment_divs = await self.get_dynamic_elements_by_custom(
             By.CSS_SELECTOR, '[class^="comment comment-"]'
         )
-        return self.get_comment_content(comment_divs[:self.n_top_comments], button=button)
+        return self.get_comment_content(
+            comment_divs[: self.n_top_comments], button=button
+        )
 
     @staticmethod
     def get_comment_content(comment_divs, button) -> List[dict]:
@@ -193,7 +197,7 @@ class DailyMailScraper:
 
     async def process_date(self, date_: date) -> pd.DataFrame:
         """Process all articles on date"""
-        article_urls = get_dates_article_urls(date_)
+        article_urls = get_dates_article_urls(date_)[:5]
         n_articles = len(article_urls)
         top_upvotes = 0
         top_article = None
@@ -210,4 +214,17 @@ class DailyMailScraper:
                 url, top_upvotes, top_article, date_, i
             )
 
+        self.save_checkpoint(days_top_article=top_article, date_=date_)
         return top_article
+
+    @staticmethod
+    def save_checkpoint(days_top_article: pd.DataFrame, date_: date) -> None:
+        for file in os.listdir(DATA_DIR):
+            if file.startswith("CHECKPOINT_"):
+                os.remove(os.path.join(DATA_DIR, file))
+
+        date_str = datetime.strftime(date_, "%d%m%Y")
+        filename = f"CHECKPOINT_{date_str}.csv"
+        filepath = os.path.join(DATA_DIR, filename)
+        days_top_article.to_csv(filepath)
+        log.info("Day succesfully scraped - Saving new checkpoint", prefix=logs.PREFIX)

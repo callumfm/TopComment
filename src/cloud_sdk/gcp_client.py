@@ -18,7 +18,7 @@ log = logs.CustomLogger(__name__)
 
 def generate_id(n):
     alphabet = string.ascii_lowercase + string.digits
-    unique_id = ''.join(secrets.choice(alphabet) for _ in range(n))
+    unique_id = "".join(secrets.choice(alphabet) for _ in range(n))
     return unique_id
 
 
@@ -35,9 +35,11 @@ class GCPClient:
 
         self.credentials = service_account.Credentials.from_service_account_file(
             self.instance_config["service_account_credentials"],
-            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
         )
-        self.client = build(self.instance_config["service"], "v1", credentials=self.credentials)
+        self.client = build(
+            self.instance_config["service"], "v1", credentials=self.credentials
+        )
 
     def __repr__(self):
         return f"{__class__.__name__}({self.project_name}, {self.zone})"
@@ -56,7 +58,9 @@ class GCPClient:
         response = self.execute_request(request)
         console_output = response.get("contents", "")
         t = 0
-        while "Setup complete" not in console_output and instance["status"] != "RUNNING":
+        while (
+            "Setup complete" not in console_output and instance["status"] != "RUNNING"
+        ):
             sleep(2)
             if t > self.startup_timeout:
                 error_msg = f"Startup script exceeded timeout limit ({self.startup_timeout}s) for instance {instance}"
@@ -77,10 +81,14 @@ class GCPClient:
 
     def get_instances(self):
         """Get all VM instances"""
-        return self.client.instances().list(
-            project=self.project_id,
-            zone=self.zone,
-        ).execute()["items"]
+        return (
+            self.client.instances()
+            .list(
+                project=self.project_id,
+                zone=self.zone,
+            )
+            .execute()["items"]
+        )
 
     def delete_all_vm_instances(self):
         """Delete all VM instances"""
@@ -89,9 +97,7 @@ class GCPClient:
         for instance in instances["items"]:
             instance_name = instance["name"]
             request = self.client.instances().delete(
-                project=self.project_id,
-                zone=self.zone,
-                instance=instance_name
+                project=self.project_id, zone=self.zone, instance=instance_name
             )
             self.execute_request(request, operation=True)
 
@@ -107,7 +113,9 @@ class GCPClient:
         with open(startup_script_path, "r") as f:
             startup_script = f.read()
             startup_script += f"\n{script}"
-            instance_template["metadata"]["items"] = [{"key": "startup-script", "value": startup_script}]
+            instance_template["metadata"]["items"] = [
+                {"key": "startup-script", "value": startup_script}
+            ]
 
         return instance_template
 
@@ -116,7 +124,9 @@ class GCPClient:
         try:
             response = request.execute()
             if operation:
-                self.client.globalOperations().wait(project=self.project_id, operation=response["name"])
+                self.client.globalOperations().wait(
+                    project=self.project_id, operation=response["name"]
+                )
             log.info(f"{func_name} executed successfully")
             return response
         except HttpError as error:
@@ -135,11 +145,10 @@ class GCPClient:
         except NotFound:
             log.info(f"Network {network_name} not found. Building new network.")
 
-        network_body = {
-            'name': network_name,
-            'autoCreateSubnetworks': False
-        }
-        request = self.client.networks().insert(project=self.project_id, body=network_body)
+        network_body = {"name": network_name, "autoCreateSubnetworks": False}
+        request = self.client.networks().insert(
+            project=self.project_id, body=network_body
+        )
         self.execute_request(request)
 
     def create_subnetwork(self):
@@ -149,8 +158,12 @@ class GCPClient:
 
         try:
             subnet_client = compute_v1.SubnetworksClient(credentials=self.credentials)
-            subnet_client.get(project=self.project_id, region=self.region, subnetwork=subnet_name)
-            log.info(f"Subnetwork {subnet_name} already exists. Skipping creation step.")
+            subnet_client.get(
+                project=self.project_id, region=self.region, subnetwork=subnet_name
+            )
+            log.info(
+                f"Subnetwork {subnet_name} already exists. Skipping creation step."
+            )
             return
         except NotFound:
             log.info(f"Subnetwork {subnet_name} not found. Building new subnet.")
@@ -159,12 +172,10 @@ class GCPClient:
             "name": subnet_name,
             "ipCidrRange": ip_cidr_range,
             "region": f"projects/{self.project_id}/regions/{subnet_name}",
-            "network": f"projects/{self.project_id}/global/networks/{network_name}"
+            "network": f"projects/{self.project_id}/global/networks/{network_name}",
         }
         request = self.client.subnetworks().insert(
-            project=self.project_id,
-            region=self.region,
-            body=subnetwork_body
+            project=self.project_id, region=self.region, body=subnetwork_body
         )
         self.execute_request(request)
 

@@ -1,13 +1,13 @@
 import argparse
+from datetime import datetime
 from typing import List
 
 import numpy as np
 
 import utils.logger as logs
 from cloud_sdk.gcp_client import GCPClient
-from webscraper.dates import get_dates
 from configs.config import load_config
-from datetime import datetime
+from webscraper.dates import get_dates
 
 log = logs.CustomLogger(__name__)
 
@@ -31,18 +31,25 @@ def parse_args(argv=None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def create_instance_scripts(n_instances: int, start_date: str, end_date: str, n_top_comments: int) -> List[str]:
+def create_instance_scripts(
+    n_instances: int, start_date: str, end_date: str, n_top_comments: int
+) -> List[str]:
     """Create Python scraper script for each instance to run"""
     start_date = datetime.strptime(start_date, "%d/%m/%Y").date()
     end_date = datetime.strptime(end_date, "%d/%m/%Y").date()
     dates = get_dates(start_date=start_date, end_date=end_date)
     date_groups = np.array_split(dates, n_instances)
-    scripts = [
-        f"export PYTHONPATH=/usr/local/TopComment/src\n"
-        f"cd /usr/local/TopComment/src\n"
-        f"python3 webscraper/run.py --start-date {dg[0]} --end-date {dg[-1]} --n-top-comments {n_top_comments}"
-        for dg in date_groups
-    ]
+
+    scripts = []
+    for dates_seg in date_groups:
+        start_date = datetime.strftime(dates_seg[0], "%d/%m/%Y")
+        end_date = datetime.strftime(dates_seg[1], "%d/%m/%Y")
+        script = (
+            "export PYTHONPATH=/usr/local/TopComment/src\n"
+            + "cd /usr/local/TopComment/src\n"
+            + f"python3 webscraper/run.py --start-date {start_date} --end-date {end_date} --n-top-comments {n_top_comments}"
+        )
+        scripts.append(script)
 
     return scripts
 
