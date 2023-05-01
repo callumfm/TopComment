@@ -21,14 +21,23 @@ def parse_args(argv=None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def process_args(argv: List = None) -> Tuple[List[date], int]:
+def output_filename(start_date, end_date):
+    start_date = start_date.replace("/", "")
+    end_date = end_date.replace("/", "")
+    filename = f"data/top_articles_{start_date}_{end_date}"
+
+    return filename
+
+
+def process_args(argv: List = None) -> Tuple[List[date], int, str]:
     args = parse_args(argv)
     start_date = datetime.strptime(args.start_date, "%d/%m/%Y").date()
     end_date = datetime.strptime(args.end_date, "%d/%m/%Y").date()
     log.info(f"Date range: {start_date} - {end_date}")
     dates = get_dates(start_date=start_date, end_date=end_date)
+    filename = output_filename(start_date=args.start_date, end_date=args.end_date)
 
-    return dates, args.n_top_comments
+    return dates, args.n_top_comments, filename
 
 
 async def get_top_articles(dates: List[date], scraper_config: dict) -> pd.DataFrame:
@@ -43,8 +52,8 @@ async def get_top_articles(dates: List[date], scraper_config: dict) -> pd.DataFr
 
 if __name__ == "__main__":
     log.info("Starting new pipeline run")
-    dates, n_top = process_args()
+    dates, n_top, filename = process_args()
     scraper_config = load_config("webscraper/scraper_config.yaml")
     scraper_config["n_top_comments"] = n_top
     top_articles = asyncio.run(get_top_articles(dates=dates, scraper_config=scraper_config))
-    print(top_articles)
+    top_articles.to_csv(filename)

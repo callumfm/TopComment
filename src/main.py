@@ -67,7 +67,7 @@ def full_pipeline(argv: List = None) -> None:
     )
 
     gcp_client = GCPClient(config)
-    gcp_client.create_n_instances(1)
+    gcp_client.create_n_instances(n_instances)
     print()
 
 

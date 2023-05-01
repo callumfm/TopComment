@@ -24,5 +24,7 @@ cd /TopComment/src || exit
 pip3 install --upgrade pip
 pip3 install -r requirements.txt
 mv /TopComment /usr/local/
-find /usr/local/TopComment -type d -exec chmod 775 {} \;
-find /usr/local/TopComment -type d -exec chmod 664 {} \;
+find /usr/local/TopComment -type d -exec chmod 777 {} \;
+find /usr/local/TopComment -type f -exec chmod 777 {} \;
+echo "Setup complete"
+
