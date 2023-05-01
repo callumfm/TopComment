@@ -197,7 +197,7 @@ class DailyMailScraper:
 
     async def process_date(self, date_: date) -> pd.DataFrame:
         """Process all articles on date"""
-        article_urls = get_dates_article_urls(date_)
+        article_urls = get_dates_article_urls(date_)[:3]
         n_articles = len(article_urls)
         top_upvotes = 0
         top_article = None
