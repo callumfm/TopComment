@@ -1,6 +1,7 @@
 from datetime import date
 from time import sleep
-from typing import List, Literal, Union, Dict
+from typing import List, Union, Dict
+from typing_extensions import Literal
 
 import pandas as pd
 from selenium import webdriver

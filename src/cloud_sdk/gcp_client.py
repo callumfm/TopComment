@@ -1,19 +1,16 @@
 import inspect
-from typing import List
-import concurrent.futures
+import secrets
+import string
 from time import sleep
+from typing import List
 
 from google.api_core.exceptions import NotFound
 from google.cloud import compute_v1
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
 import utils.logger as logs
-import paramiko
-
-import secrets
-import string
-
 from configs.config import load_config
 
 log = logs.CustomLogger(__name__)
@@ -45,6 +42,10 @@ class GCPClient:
     def __repr__(self):
         return f"{__class__.__name__}({self.project_name}, {self.zone})"
 
+    def run(self, num_instances: int, scripts: List[str]) -> None:
+        for i in range(num_instances):
+            self.create_vm_instance(script=scripts[i])
+
     def await_startup_script_execution(self, instance):
         """Ensures all libraries are installed before using VM"""
         request = self.client.instances().getSerialPortOutput(
@@ -55,7 +56,7 @@ class GCPClient:
         response = self.execute_request(request)
         console_output = response.get("contents", "")
         t = 0
-        while "Startup finished" not in console_output and instance["status"] != "RUNNING":
+        while "Setup complete" not in console_output and instance["status"] != "RUNNING":
             sleep(2)
             if t > self.startup_timeout:
                 error_msg = f"Startup script exceeded timeout limit ({self.startup_timeout}s) for instance {instance}"
@@ -64,19 +65,15 @@ class GCPClient:
 
         log.info(f"Startup script correctly for instance {instance}")
 
-    def create_vm_instance(self) -> None:
+    def create_vm_instance(self, script="") -> None:
         """Create a VM instance"""
-        instance_template = self.load_instance_template()
+        instance_template = self.load_instance_template(script=script)
         request = self.client.instances().insert(
             project=self.project_id,
             zone=self.zone,
             body=instance_template,
         )
         self.execute_request(request, operation=True)
-
-    def create_n_instances(self, n) -> None:
-        for _ in range(n):
-            self.create_vm_instance()
 
     def get_instances(self):
         """Get all VM instances"""
@@ -98,7 +95,7 @@ class GCPClient:
             )
             self.execute_request(request, operation=True)
 
-    def load_instance_template(self) -> dict:
+    def load_instance_template(self, script: str) -> dict:
         """Load instance template, add unique name, update metadata startup script"""
         instance_template = load_config(self.instance_config["instance_template"])
 
@@ -108,8 +105,9 @@ class GCPClient:
         # Add startup script
         startup_script_path = instance_template["metadata"]["items"][0]["value"]
         with open(startup_script_path, "r") as f:
-            start_up_script = f.read()
-            instance_template["metadata"]["items"] = [{"key": "startup-script", "value": start_up_script}]
+            startup_script = f.read()
+            startup_script += f"\n{script}"
+            instance_template["metadata"]["items"] = [{"key": "startup-script", "value": startup_script}]
 
         return instance_template
 
@@ -170,16 +168,16 @@ class GCPClient:
         )
         self.execute_request(request)
 
-    def create_allow_all_firewall_rule(self):
-        """Not working or required"""
-        network_name = self.network_config["network"]["name"]
-        firewall_rule_body = {
-            "network": f"projects/{self.project_id}/global/networks/{network_name}"
-        }
-        firewall_rule_body.update(self.network_config["firewall"])
-
-        firewall_rule = self.client.firewalls().insert(
-            project=self.project_id,
-            body=firewall_rule_body,
-        )
-        self.execute_request(firewall_rule)
+    # def create_allow_all_firewall_rule(self):
+    #     """Not working or required"""
+    #     network_name = self.network_config["network"]["name"]
+    #     firewall_rule_body = {
+    #         "network": f"projects/{self.project_id}/global/networks/{network_name}"
+    #     }
+    #     firewall_rule_body.update(self.network_config["firewall"])
+    #
+    #     firewall_rule = self.client.firewalls().insert(
+    #         project=self.project_id,
+    #         body=firewall_rule_body,
+    #     )
+    #     self.execute_request(firewall_rule)
