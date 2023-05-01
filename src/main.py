@@ -39,7 +39,7 @@ def create_instance_scripts(n_instances: int, start_date: str, end_date: str, n_
     dates = get_dates(start_date=start_date, end_date=end_date)
     date_groups = np.array_split(dates, n_instances)
     scripts = [
-        f"python -m webscraper/run.py --start-date {dg[0]} --end-date {dg[-1]} --n-top-comments {n_top_comments}"
+        f"python webscraper/run.py --start-date {dg[0]} --end-date {dg[-1]} --n-top-comments {n_top_comments}"
         for dg in date_groups
     ]
 
