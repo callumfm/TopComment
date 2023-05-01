@@ -6,11 +6,11 @@ from typing import List, Tuple
 
 import pandas as pd
 
-import utils.logger as logs
-from configs.config import load_config
+import src.utils.logger as logs
+from src.configs.config import load_config
 from src import DATA_DIR
-from webscraper.dates import get_dates
-from webscraper.scraper import DailyMailScraper
+from src.webscraper.dates import get_dates
+from src.webscraper.scraper import DailyMailScraper
 
 log = logs.CustomLogger(__name__)
 
@@ -34,7 +34,7 @@ def process_args(argv: List = None) -> Tuple[List[date], int]:
     return dates, args.n_top_comments
 
 
-async def get_top_articles(dates: List[date], scraper_config: dict) -> pd.DataFrame:
+async def get_top_articles(dates: List[date], scraper_config: dict) -> List[pd.DataFrame]:
     """Get best daily articles for data range"""
     async with DailyMailScraper(**scraper_config) as dms:
         top_daily_articles = await asyncio.gather(

@@ -4,10 +4,10 @@ from typing import List
 
 import numpy as np
 
-import utils.logger as logs
-from cloud_sdk.gcp_client import GCPClient
-from configs.config import load_config
-from webscraper.dates import get_dates
+import src.utils.logger as logs
+from src.cloud_sdk.gcp_client import GCPClient
+from src.configs.config import load_config
+from src.webscraper.dates import get_dates
 
 log = logs.CustomLogger(__name__)
 

@@ -15,8 +15,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from typing_extensions import Literal
 
 from src import DATA_DIR
-from utils import logger as logs
-from webscraper.dates import get_dates_article_urls, get_week_num
+from src.utils import logger as logs
+from src.webscraper.dates import get_dates_article_urls, get_week_num
 
 log = logs.CustomLogger(__name__)
 
