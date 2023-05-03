@@ -38,7 +38,7 @@ def create_instance_scripts(
     start_date = datetime.strptime(start_date, "%d/%m/%Y").date()
     end_date = datetime.strptime(end_date, "%d/%m/%Y").date()
     dates = get_dates(start_date=start_date, end_date=end_date)
-    date_groups = np.array_split(dates, n_instances)
+    date_groups = [dates] if len(dates) < n_instances * 2 else np.array_split(dates, n_instances)
 
     scripts = []
     for dates_seg in date_groups:
