@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# Install base tools
 sudo apt-get update && sudo apt-get upgrade
 sudo apt-get install -y git
 sudo apt-get install -y python3-pip
@@ -7,8 +9,8 @@ sudo apt-get install unzip
 sudo apt install --fix-broken
 sudo apt-get install python3 build-essential libssl-dev libffi-dev python-dev
 
-# Disable cert refreshes
-sudo sh -c 'echo "CLOUDSDK_CERT_REFRESH_DISABLE=1" >> /etc/environment'
+# Stop cert refreshes
+sudo systemctl stop gce-workload-cert-refresh.service
 
 # Set timezone
 sudo timedatectl set-timezone Europe/London
@@ -30,6 +32,7 @@ cd /TopComment/src || exit
 pip3 install --upgrade pip
 pip3 install -r requirements.txt
 
+# Set repo privileges
 mv /TopComment /usr/local/
 find /usr/local/TopComment -type d -exec chmod 777 {} \;
 find /usr/local/TopComment -type f -exec chmod 777 {} \;
