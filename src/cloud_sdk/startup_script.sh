@@ -1,5 +1,5 @@
 #!/bin/bash
-sudo apt-get update
+sudo apt-get update && sudo apt-get upgrade
 sudo apt-get install -y git
 sudo apt-get install -y python3-pip
 sudo apt-get install wget
@@ -8,7 +8,10 @@ sudo apt install --fix-broken
 sudo apt-get install python3 build-essential libssl-dev libffi-dev python-dev
 
 # Disable cert refreshes
-echo "CLOUDSDK_CERT_REFRESH_DISABLE=1" >> /etc/environment
+# sudo sh -c 'echo "CLOUDSDK_CERT_REFRESH_DISABLE=1" >> /etc/environment'
+
+# Set timezone
+sudo timedatectl set-timezone Europe/London
 
 # Install selenium and Chromedriver
 wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
