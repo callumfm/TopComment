@@ -45,8 +45,10 @@ class GCPClient:
         return f"{__class__.__name__}({self.project_name}, {self.zone})"
 
     def run(self, num_instances: int, scripts: List[str]) -> None:
+        static_ips = self.create_static_ips(num_instances)
         for i in range(num_instances):
-            self.create_vm_instance(script=scripts[i])
+            instance_template = self.load_instance_template(script=scripts[i], static_ip=static_ips[i])
+            self.create_vm_instance(instance_template)
 
     def await_startup_script_execution(self, instance):
         """Ensures all libraries are installed before using VM"""
@@ -69,9 +71,8 @@ class GCPClient:
 
         log.info(f"Startup script correctly for instance {instance}")
 
-    def create_vm_instance(self, script="") -> None:
+    def create_vm_instance(self, instance_template) -> None:
         """Create a VM instance"""
-        instance_template = self.load_instance_template(script=script)
         request = self.client.instances().insert(
             project=self.project_id,
             zone=self.zone,
@@ -101,7 +102,7 @@ class GCPClient:
             )
             self.execute_request(request, operation=True)
 
-    def load_instance_template(self, script: str) -> dict:
+    def load_instance_template(self, script: str, static_ip: str) -> dict:
         """Load instance template, add unique name, update metadata startup script"""
         instance_template = load_config(self.instance_config["instance_template"])
 
@@ -113,9 +114,10 @@ class GCPClient:
         with open(startup_script_path, "r") as f:
             startup_script = f.read()
             startup_script += f"\n{script}"
-            instance_template["metadata"]["items"] = [
-                {"key": "startup-script", "value": startup_script}
-            ]
+            instance_template["metadata"]["items"][0] = startup_script
+
+        # Add static ip address
+        instance_template["networkInterfaces"][0]["networkIP"] = static_ip
 
         return instance_template
 
@@ -133,6 +135,11 @@ class GCPClient:
             error_msg = f"{func_name} request failed - {error}"
             log.warning(error_msg)
             raise HttpError(error_msg)
+
+    @staticmethod
+    def create_static_ips(n_instances):
+        """For n_instances <= 24"""
+        return ["10.0.0." + str(i) for i in range(1, n_instances)]
 
     def create_network(self) -> None:
         network_name = self.network_config["network"]["name"]

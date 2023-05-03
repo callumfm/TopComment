@@ -56,9 +56,9 @@ class DailyMailScraper:
     def sleep_(self) -> None:
         sleep(self.sleep_time)
 
-    def retry_(self) -> None:
+    async def retry_(self) -> None:
         self.driver.refresh()
-        self.remove_base_pop_up()
+        await self.remove_base_pop_up()
 
     async def remove_base_pop_up(self):
         """Load random article and remove 'Got it!' pop-up for session"""
@@ -140,6 +140,7 @@ class DailyMailScraper:
         for i, comment in enumerate(comment_divs):
             comment_text = comment.find_element(By.CLASS_NAME, "comment-text").text
             votes = comment.find_element(By.CLASS_NAME, button).text
+            votes = int(votes) if votes != "" else votes
             data_dict = {"comment": comment_text, button: int(votes)}
             comment_content.append(data_dict)
 
@@ -170,7 +171,7 @@ class DailyMailScraper:
         try:
             top_comments = await self.get_button_comments(comment_type="Best rated")
         except StaleElementReferenceException:
-            self.retry_()
+            await self.retry_()
             top_comments = await self.get_button_comments(comment_type="Best rated")
 
         if not top_comments:
@@ -197,7 +198,7 @@ class DailyMailScraper:
 
     async def process_date(self, date_: date) -> pd.DataFrame:
         """Process all articles on date"""
-        article_urls = get_dates_article_urls(date_)
+        article_urls = get_dates_article_urls(date_)[:25]
         n_articles = len(article_urls)
         top_upvotes = 0
         top_article = None
@@ -219,6 +220,7 @@ class DailyMailScraper:
 
     @staticmethod
     def save_checkpoint(days_top_article: pd.DataFrame, date_: date) -> None:
+        print(DATA_DIR)
         if not os.path.exists(DATA_DIR):
             os.mkdir(DATA_DIR)
 
