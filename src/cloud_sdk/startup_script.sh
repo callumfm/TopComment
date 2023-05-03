@@ -8,7 +8,7 @@ sudo apt install --fix-broken
 sudo apt-get install python3 build-essential libssl-dev libffi-dev python-dev
 
 # Disable cert refreshes
-# sudo sh -c 'echo "CLOUDSDK_CERT_REFRESH_DISABLE=1" >> /etc/environment'
+sudo sh -c 'echo "CLOUDSDK_CERT_REFRESH_DISABLE=1" >> /etc/environment'
 
 # Set timezone
 sudo timedatectl set-timezone Europe/London

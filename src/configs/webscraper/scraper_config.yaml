@@ -1,4 +1,4 @@
-log_n_iter: 100
+log_n_iter: 25
 sleep_time: 0.5
 timeout: 2
 chrome_args:
