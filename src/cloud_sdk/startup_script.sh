@@ -7,6 +7,9 @@ sudo apt-get install unzip
 sudo apt install --fix-broken
 sudo apt-get install python3 build-essential libssl-dev libffi-dev python-dev
 
+# Disable cert refreshes
+echo "CLOUDSDK_CERT_REFRESH_DISABLE=1" >> /etc/environment
+
 # Install selenium and Chromedriver
 wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 sudo dpkg --install google-chrome-stable_current_amd64.deb

@@ -220,7 +220,6 @@ class DailyMailScraper:
 
     @staticmethod
     def save_checkpoint(days_top_article: pd.DataFrame, date_: date) -> None:
-        print(DATA_DIR)
         if not os.path.exists(DATA_DIR):
             os.mkdir(DATA_DIR)
 
