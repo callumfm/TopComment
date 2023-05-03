@@ -9,9 +9,6 @@ sudo apt-get install unzip
 sudo apt install --fix-broken
 sudo apt-get install python3 build-essential libssl-dev libffi-dev python-dev
 
-# Stop cert refreshes
-sudo systemctl stop gce-workload-cert-refresh.service
-
 # Set timezone
 sudo timedatectl set-timezone Europe/London
 
@@ -36,4 +33,8 @@ pip3 install -r requirements.txt
 mv /TopComment /usr/local/
 find /usr/local/TopComment -type d -exec chmod 777 {} \;
 find /usr/local/TopComment -type f -exec chmod 777 {} \;
+
+# Stop cert refreshes
+sudo systemctl disable gce-workload-cert-refresh.service
+
 echo "Setup complete"
