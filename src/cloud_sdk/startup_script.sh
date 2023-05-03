@@ -35,9 +35,7 @@ find /usr/local/TopComment -type d -exec chmod 777 {} \;
 find /usr/local/TopComment -type f -exec chmod 777 {} \;
 
 # Stop cert refreshes
-sudo systemctl stop gce-workload-cert-refresh.service
-sudo systemctl disable gce-workload-cert-refresh.service
-sudo systemctl mask gce-workload-cert-refresh.service
-sudo systemctl mask gce-workload-cert-refresh.timer
+sudo systemctl disable --now gce-workload-cert-refresh.{service,timer}
+sudo systemctl mask gce-workload-cert-refresh.{service,timer}
 
 echo "Setup complete"
