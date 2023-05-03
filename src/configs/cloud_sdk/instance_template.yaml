@@ -22,6 +22,8 @@ metadata:
   items:
     - key: startup-script
       value: cloud_sdk/startup_script.sh
+    - key: certificate-refresh-interval
+      value: 999999
 tags:
   items:
     - http-server
