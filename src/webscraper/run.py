@@ -34,14 +34,21 @@ def process_args(argv: List = None) -> Tuple[List[date], int]:
     return dates, args.n_top_comments
 
 
-async def get_top_articles(dates: List[date], scraper_config: dict) -> List[pd.DataFrame]:
-    """Get best daily articles for data range"""
-    async with DailyMailScraper(**scraper_config) as dms:
-        top_daily_articles = await asyncio.gather(
-            *[dms.process_date(date_) for date_ in dates]
-        )
+def save_checkpoint(top_articles: List[pd.DataFrame], date_: date):
+    if not os.path.exists(DATA_DIR):
+        os.mkdir(DATA_DIR)
 
-    return top_daily_articles
+    for file in os.listdir(DATA_DIR):
+        if file.startswith("CHECKPOINT_"):
+            os.remove(os.path.join(DATA_DIR, file))
+
+    date_str = datetime.strftime(date_, "%d%m%Y")
+    filename = f"CHECKPOINT_{date_str}.csv"
+    filepath = os.path.join(DATA_DIR, filename)
+
+    df = pd.concat(top_articles)
+    df.to_csv(filepath)
+    log.info("Day succesfully scraped - Saving new checkpoint", prefix=logs.PREFIX)
 
 
 def save_output(top_articles: List[pd.DataFrame], date_range: List[date]) -> None:
@@ -49,9 +56,24 @@ def save_output(top_articles: List[pd.DataFrame], date_range: List[date]) -> Non
     end_date = datetime.strftime(date_range[1], "%d%m%Y")
     filename = f"OUTPUT_{start_date}_{end_date}.csv"
     filepath = os.path.join(DATA_DIR, filename)
+
     df = pd.concat(top_articles)
     df.to_csv(filepath)
     log.info("Run complete - Saving output")
+
+
+async def get_top_articles(
+    dates: List[date], scraper_config: dict
+) -> List[pd.DataFrame]:
+    """Get best daily articles for data range"""
+    top_articles = []
+    async with DailyMailScraper(**scraper_config) as dms:
+        for date_ in dates:
+            top_date_article = await dms.process_date(date_)
+            top_articles.append(top_date_article)
+            save_checkpoint(top_articles, date_)
+
+    return top_articles
 
 
 if __name__ == "__main__":

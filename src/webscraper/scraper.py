@@ -6,8 +6,10 @@ from typing import Dict, List, Union
 import pandas as pd
 from selenium import webdriver
 from selenium.common import StaleElementReferenceException
-from selenium.common.exceptions import (ElementClickInterceptedException,
-                                        TimeoutException)
+from selenium.common.exceptions import (
+    ElementClickInterceptedException,
+    TimeoutException,
+)
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -84,6 +86,7 @@ class DailyMailScraper:
                 f"Timeout error: could not retrieve {search_type} {string}",
                 prefix=logs.PREFIX,
             )
+            return []
 
     async def click_dynamic_element(self, search_type: By, string: str) -> bool:
         try:
@@ -97,11 +100,13 @@ class DailyMailScraper:
                 f"Pop up prevented {string} element from being clicked",
                 prefix=logs.PREFIX,
             )
+            sleep(2)
             await self.click_dynamic_element(search_type, string)
             return False
         except TimeoutException:
             log.debug(
-                f"Timeout error: could not retrieve {search_type} {string}",
+                f"Timeout error: could not retrieve {search_type} {string} - "
+                "No comments available",
                 prefix=logs.PREFIX,
             )
             return False
@@ -140,7 +145,9 @@ class DailyMailScraper:
         for i, comment in enumerate(comment_divs):
             comment_text = comment.find_element(By.CLASS_NAME, "comment-text").text
             votes = comment.find_element(By.CLASS_NAME, button).text
-            votes = int(votes) if votes != "" else votes
+            if votes == "":
+                votes = 0
+
             data_dict = {"comment": comment_text, button: int(votes)}
             comment_content.append(data_dict)
 
@@ -215,20 +222,4 @@ class DailyMailScraper:
                 url, top_upvotes, top_article, date_, i
             )
 
-        self.save_checkpoint(days_top_article=top_article, date_=date_)
         return top_article
-
-    @staticmethod
-    def save_checkpoint(days_top_article: pd.DataFrame, date_: date) -> None:
-        if not os.path.exists(DATA_DIR):
-            os.mkdir(DATA_DIR)
-
-        for file in os.listdir(DATA_DIR):
-            if file.startswith("CHECKPOINT_"):
-                os.remove(os.path.join(DATA_DIR, file))
-
-        date_str = datetime.strftime(date_, "%d%m%Y")
-        filename = f"CHECKPOINT_{date_str}.csv"
-        filepath = os.path.join(DATA_DIR, filename)
-        days_top_article.to_csv(filepath)
-        log.info("Day succesfully scraped - Saving new checkpoint", prefix=logs.PREFIX)
