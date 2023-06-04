@@ -180,7 +180,6 @@ class DailyMailScraper:
         top_comments = await self.get_button_comments(comment_type="Best rated")
 
         if not top_comments:
-            log.info(f"Timeout loading url: {url}", prefix=logs.PREFIX)
             return top_upvotes, top_article
 
         top_comment_upvotes = top_comments[0]["rating-button-up"]
