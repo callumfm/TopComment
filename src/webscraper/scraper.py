@@ -1,5 +1,4 @@
-import os
-from datetime import date, datetime
+from datetime import date
 from time import sleep
 from typing import Dict, List, Union
 
@@ -16,7 +15,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from typing_extensions import Literal
 
-from src import DATA_DIR
 from src.utils import logger as logs
 from src.webscraper.dates import get_dates_article_urls, get_week_num
 
@@ -29,7 +27,9 @@ class DailyMailScraper:
         n_top_comments: int,
         log_n_iter: int,
         chrome_args: List[str],
-        timeout: int,
+        element_timeout: int,
+        page_load_timeout: int,
+        retry_attempts: int,
         sleep_time: int,
     ):
         self.driver = None
@@ -38,11 +38,14 @@ class DailyMailScraper:
         self.chrome_options = Options()
         for arg in chrome_args:
             self.chrome_options.add_argument(arg)
-        self.timeout = timeout
+        self.element_timeout = element_timeout
+        self.page_load_timeout = page_load_timeout
+        self.retry_attempts = retry_attempts
         self.sleep_time = sleep_time
 
     async def __aenter__(self):
         self.driver = webdriver.Chrome(options=self.chrome_options)
+        self.driver.set_page_load_timeout(self.page_load_timeout)
         self.driver.maximize_window()
         log.info("Selenium scraper initialised", prefix=logs.PREFIX)
         await self.remove_base_pop_up()
@@ -58,7 +61,7 @@ class DailyMailScraper:
     def sleep_(self) -> None:
         sleep(self.sleep_time)
 
-    async def retry_(self) -> None:
+    async def refresh_driver(self) -> None:
         self.driver.refresh()
         await self.remove_base_pop_up()
 
@@ -78,7 +81,7 @@ class DailyMailScraper:
         try:
             self.sleep_()
             condition = EC.presence_of_all_elements_located((search_type, string))
-            wait = WebDriverWait(self.driver, self.timeout)
+            wait = WebDriverWait(self.driver, self.element_timeout)
             element = wait.until(condition)
             return element
         except TimeoutException:
@@ -92,7 +95,7 @@ class DailyMailScraper:
         try:
             self.sleep_()
             condition = EC.element_to_be_clickable((search_type, string))
-            element = WebDriverWait(self.driver, self.timeout).until(condition)
+            element = WebDriverWait(self.driver, self.element_timeout).until(condition)
             element.click()
             return True
         except ElementClickInterceptedException:
@@ -174,14 +177,10 @@ class DailyMailScraper:
     ):
         """Process single article"""
         self.driver.get(url)
-
-        try:
-            top_comments = await self.get_button_comments(comment_type="Best rated")
-        except StaleElementReferenceException:
-            await self.retry_()
-            top_comments = await self.get_button_comments(comment_type="Best rated")
+        top_comments = await self.get_button_comments(comment_type="Best rated")
 
         if not top_comments:
+            log.info(f"Timeout loading url: {url}", prefix=logs.PREFIX)
             return top_upvotes, top_article
 
         top_comment_upvotes = top_comments[0]["rating-button-up"]
@@ -218,8 +217,14 @@ class DailyMailScraper:
             if (i + 1) % self.log_n_iter == 0:
                 log.info(logs.PREFIX)
 
-            top_upvotes, top_article = await self.process_article(
-                url, top_upvotes, top_article, date_, i
-            )
+            for _ in range(self.retry_attempts + 1):
+                try:
+                    top_upvotes, top_article = await self.process_article(
+                        url, top_upvotes, top_article, date_, i
+                    )
+                    break
+                except (TimeoutException, StaleElementReferenceException):
+                    log.info("Stale element reference or timeout occurred. Retrying...", prefix=logs.PREFIX)
+                    await self.refresh_driver()
 
         return top_article

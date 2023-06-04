@@ -1,6 +1,8 @@
 log_n_iter: 100
 sleep_time: 0.5
-timeout: 1
+element_timeout: 1
+page_load_timeout: 30
+retry_attempts: 1
 chrome_args:
   - disable-dev-shm-usage
   - no-sandbox
