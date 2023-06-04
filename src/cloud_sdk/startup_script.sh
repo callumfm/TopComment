@@ -16,7 +16,7 @@ sudo timedatectl set-timezone Europe/London
 wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 sudo dpkg --install google-chrome-stable_current_amd64.deb
 sudo apt-get --assume-yes install -f
-wget https://chromedriver.storage.googleapis.com/112.0.5615.49/chromedriver_linux64.zip
+wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
 unzip chromedriver_linux64.zip
 sudo mv chromedriver /usr/local/bin/
 sudo chown root:root /usr/local/bin/chromedriver
