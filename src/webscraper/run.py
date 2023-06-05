@@ -51,6 +51,18 @@ def save_checkpoint(top_articles: List[pd.DataFrame], date_: date):
     log.info("Day succesfully scraped - Saving new checkpoint", prefix=logs.PREFIX)
 
 
+def resume_checkpoint():
+    checkpoints = os.listdir(DATA_DIR)
+
+    if not checkpoints:
+        return []
+
+    log.info("Previous checkpoint found - Resuming")
+    file = os.path.join(DATA_DIR, checkpoints[0])
+    df = pd.read_csv(file)
+    return df
+
+
 def save_output(top_articles: List[pd.DataFrame], date_range: List[date]) -> None:
     start_date = datetime.strftime(date_range[0], "%d%m%Y")
     end_date = datetime.strftime(date_range[1], "%d%m%Y")
