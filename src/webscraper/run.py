@@ -57,11 +57,11 @@ def load_checkpoint(dates: List[date]) -> Tuple[List[pd.DataFrame], List[date]]:
     if not checkpoints:
         return [], dates
 
-    log.info("Previous checkpoint found - Resuming")
     file = os.path.join(DATA_DIR, checkpoints[0])
     df = pd.read_csv(file)
-    completed_dates = df["date"].apply(lambda x: datetime.strptime(x, "%Y-%m-%d"))
+    completed_dates = df["date"].apply(lambda x: datetime.strptime(x, "%Y-%m-%d").date())
     new_dates = [d for d in dates if d not in completed_dates]
+    log.info(f"Previous checkpoint found - Resuming from {new_dates[0]}")
 
     return [df], new_dates
 
