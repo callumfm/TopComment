@@ -51,16 +51,19 @@ def save_checkpoint(top_articles: List[pd.DataFrame], date_: date):
     log.info("Day succesfully scraped - Saving new checkpoint", prefix=logs.PREFIX)
 
 
-def resume_checkpoint():
+def load_checkpoint(dates: List[date]) -> Tuple[List[pd.DataFrame], List[date]]:
     checkpoints = os.listdir(DATA_DIR)
 
     if not checkpoints:
-        return []
+        return [], dates
 
     log.info("Previous checkpoint found - Resuming")
     file = os.path.join(DATA_DIR, checkpoints[0])
     df = pd.read_csv(file)
-    return df
+    completed_dates = df["date"].apply(lambda x: datetime.strptime(x, "%Y-%m-%d"))
+    new_dates = [d for d in dates if d not in completed_dates]
+
+    return [df], new_dates
 
 
 def save_output(top_articles: List[pd.DataFrame], date_range: List[date]) -> None:
@@ -78,9 +81,10 @@ async def get_top_articles(
     dates: List[date], scraper_config: dict
 ) -> List[pd.DataFrame]:
     """Get best daily articles for data range"""
-    top_articles = []
+    top_articles, scrape_dates = load_checkpoint(dates)
+
     async with DailyMailScraper(**scraper_config) as dms:
-        for date_ in dates:
+        for date_ in scrape_dates:
             top_date_article = await dms.process_date(date_)
             top_articles.append(top_date_article)
             save_checkpoint(top_articles, date_)
