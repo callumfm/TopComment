@@ -58,6 +58,14 @@ class DailyMailScraper:
         if exc_type is not None:
             log.error(f"{exc_type}\n{exc_val}\n{exc_tb}", prefix=logs.PREFIX)
 
+    def load_webpage(self, url: str) -> bool:
+        try:
+            self.driver.get(url)
+            return True
+        except TimeoutException:
+            log.info("Timeout occurred loading url", prefix=logs.PREFIX)
+            return False
+
     def sleep_(self) -> None:
         sleep(self.sleep_time)
 
@@ -74,8 +82,8 @@ class DailyMailScraper:
             "https://www.dailymail.co.uk/wires/ap/article-11350651/"
             "Australia-reveal-economic-plan-deteriorating-outlook.html#html"
         )
-        self.driver.get(sample_url)
-        await self.click_dynamic_element(By.XPATH, "//button[text()='Got it']")
+        if self.load_webpage(sample_url):
+            await self.click_dynamic_element(By.XPATH, "//button[text()='Got it']")
 
     async def get_dynamic_elements_by_custom(self, search_type: By, string: str):
         try:
@@ -103,8 +111,9 @@ class DailyMailScraper:
                 f"Pop up prevented {string} element from being clicked",
                 prefix=logs.PREFIX,
             )
-            sleep(2)
-            await self.click_dynamic_element(search_type, string)
+            # # TODO: fix recursion error
+            # sleep(2)
+            # await self.click_dynamic_element(search_type, string)
             return False
         except TimeoutException:
             log.debug(
@@ -176,29 +185,28 @@ class DailyMailScraper:
         i: int,
     ):
         """Process single article"""
-        self.driver.get(url)
-        top_comments = await self.get_button_comments(comment_type="Best rated")
+        if not self.load_webpage(url):
+            return top_upvotes, top_article
 
+        top_comments = await self.get_button_comments(comment_type="Best rated")
         if not top_comments:
             return top_upvotes, top_article
 
         top_comment_upvotes = top_comments[0]["rating-button-up"]
-
-        if top_comment_upvotes > top_upvotes:
-            log.info(
-                f"New top comment found with {top_comment_upvotes} upvotes - {url}",
-                prefix=logs.PREFIX,
-            )
-            top_upvotes = top_comment_upvotes
-
-            top_article = self.create_df_output(
-                comments=top_comments,
-                url=url,
-                date_=date_,
-                article_num=i,
-            )
+        if top_comment_upvotes <= top_upvotes:
             return top_upvotes, top_article
 
+        log.info(
+            f"New top comment found with {top_comment_upvotes} upvotes - {url}",
+            prefix=logs.PREFIX,
+        )
+        top_upvotes = top_comment_upvotes
+        top_article = self.create_df_output(
+            comments=top_comments,
+            url=url,
+            date_=date_,
+            article_num=i,
+        )
         return top_upvotes, top_article
 
     async def process_date(self, date_: date) -> pd.DataFrame:
